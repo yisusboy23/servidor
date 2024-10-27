@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs'; // Importar bcrypt para encriptar contraseñas
 
 const app = express();
-const port = 3001; 
+const port = 3001;
 
 // ***** CONFIGURACIÓN DE DIRECTORIOS Y ARCHIVOS JSON *****
 
@@ -150,16 +150,17 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
     return res.status(400).json({ message: 'Error al subir la imagen' });
   }
 
-  // Crear la nueva publicación
+  // Usa la URL pública de Render
+  const baseUrl = process.env.BASE_URL || 'https://servidor-c1k2.onrender.com';
   const nuevaPublicacion = {
-    imagePath: `http://${req.headers.host}/uploads/${req.file.filename}`, // Corregido para usar comillas invertidas
+    imagePath: `${baseUrl}/uploads/${req.file.filename}`,
     imageName,
     description,
     username
   };
 
   publicaciones.push(nuevaPublicacion);
-  writeJsonFile(publicacionesFilePath, publicaciones); // Guardar la publicación
+  writeJsonFile(publicacionesFilePath, publicaciones);
 
   res.status(201).json({
     message: 'Imagen subida exitosamente',
@@ -297,7 +298,7 @@ app.delete('/api/publicaciones', (req, res) => {
 
   // Elimina la publicación de los likes de todos los usuarios
   likes.forEach(like => {
-    like.likedPublications = like.likedPublications.filter(likePublication => 
+    like.likedPublications = like.likedPublications.filter(likePublication =>
       likePublication.imagePath !== publication.imagePath || likePublication.imageName !== publication.imageName
     );
   });
