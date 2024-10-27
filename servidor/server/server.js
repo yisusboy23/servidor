@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs'; // Importar bcrypt para encriptar contraseñas
 
 const app = express();
-const port = 3001;
+const port = process.env.PORT || 3001; // Cambiado para usar el puerto de Render
 
 // ***** CONFIGURACIÓN DE DIRECTORIOS Y ARCHIVOS JSON *****
 
