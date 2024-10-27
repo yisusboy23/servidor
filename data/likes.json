@@ -1,0 +1,47 @@
+[
+  {
+    "username": "alex666",
+    "likedPublications": [
+      {
+        "imagePath": "http://localhost:3001/uploads/1729637344707-ecolab-logo.png",
+        "imageName": "7",
+        "description": "7",
+        "creator": "alex666"
+      },
+      {
+        "imagePath": "http://localhost:3001/uploads/1729545276241-6090394.png",
+        "imageName": "4",
+        "description": "4",
+        "creator": "fatima4444"
+      }
+    ]
+  },
+  {
+    "username": "jesus222",
+    "likedPublications": [
+      {
+        "imagePath": "http://localhost:3001/uploads/1729545276241-6090394.png",
+        "imageName": "4",
+        "description": "4",
+        "creator": "fatima4444"
+      },
+      {
+        "imagePath": "http://localhost:3001/uploads/1729834642399-edit_modify_icon_149489.png",
+        "imageName": "9",
+        "description": "9",
+        "creator": "jesus222"
+      }
+    ]
+  },
+  {
+    "username": "fatima123",
+    "likedPublications": [
+      {
+        "imagePath": "http://localhost:3001/uploads/1729545276241-6090394.png",
+        "imageName": "4",
+        "description": "4",
+        "creator": "fatima4444"
+      }
+    ]
+  }
+]

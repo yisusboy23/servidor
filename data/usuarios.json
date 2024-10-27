@@ -1,0 +1,42 @@
+[
+  {
+    "username": "usuario",
+    "password": "1234"
+  },
+  {
+    "username": "rafael122",
+    "password": "122"
+  },
+  {
+    "username": "jesus123",
+    "password": "123"
+  },
+  {
+    "username": "fatima4444",
+    "password": "4444"
+  },
+  {
+    "username": "gerardo55555",
+    "password": "$2b$10$ofZIzqcL/nnbfHteArVTTe/ZBDfLnmf1zE5K1TZtaIfhfD/IzdRdO"
+  },
+  {
+    "username": "alex666",
+    "password": "$2b$10$4B9clG7biR8nke2yCGXEvuwQPLEiQngEc5NlZSpXvr9BtnGDmY6iW"
+  },
+  {
+    "username": "jesus222",
+    "password": "$2b$10$o0PPmlnlOyi9SDpMSVEbYugo2zAlX8fzuW6jq/e4Gk5dOfhIyU3rm"
+  },
+  {
+    "username": "fatima123",
+    "password": "$2b$10$nBtOeKT005cBkuLwG5XaF.r96aJemuqkSjGaOK4PxSMUcwqIgphiu"
+  },
+  {
+    "username": "NANO123",
+    "password": "$2b$10$0x/UXUvCnYUtWZGS6/aVHeOa7rwgEn16lQrruntt9VT/hVk6e6mAm"
+  },
+  {
+    "username": "GERARDIN123",
+    "password": "$2b$10$bfQOewxxplH8aibopz2UIeuQXU84Uab82eE9chPnC2wCRum57bnUW"
+  }
+]
