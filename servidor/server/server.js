@@ -5,7 +5,7 @@ import path from 'path';
 import multer from 'multer';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import bcrypt from 'bcrypt'; // Importar bcrypt para encriptar contraseñas
+import bcrypt from 'bcryptjs'; // Importar bcrypt para encriptar contraseñas
 
 const app = express();
 const port = 3001;
