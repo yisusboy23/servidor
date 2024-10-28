@@ -5,116 +5,120 @@ import path from 'path';
 import multer from 'multer';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import bcrypt from 'bcryptjs'; // Importar bcrypt para encriptar contraseñas
+import bcrypt from 'bcryptjs';
 
 const app = express();
-const port = 3001;
+const port = process.env.PORT || 3001;
 
-// ***** CONFIGURACIÓN DE DIRECTORIOS Y ARCHIVOS JSON *****
-
-// Obtener el directorio actual
+// ***** CONFIGURACIÓN DE DIRECTORIOS *****
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Archivos JSON
-const usuariosFilePath = path.join(__dirname, '../data/usuarios.json');
-const publicacionesFilePath = path.join(__dirname, '../data/publicaciones.json');
+// Definir directorios persistentes en Render
+const PERSISTENT_DIR = '/opt/render/project/src';
+const DATA_DIR = path.join(PERSISTENT_DIR, 'data');
+const UPLOADS_DIR = path.join(PERSISTENT_DIR, 'uploads');
 
-// ***** FUNCIONES DE MANEJO DE ARCHIVOS JSON *****
-
-// Función para leer datos de un archivo JSON
-const readJsonFile = (filePath) => {
-  if (!fs.existsSync(filePath)) {
-    return []; // Devuelve un array vacío si el archivo no existe
-  }
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-};
-
-// Función para escribir datos en un archivo JSON
-const writeJsonFile = (filePath, data) => {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-};
-
-// Leer usuarios y publicaciones desde los archivos JSON
-let usuarios = readJsonFile(usuariosFilePath);
-let publicaciones = readJsonFile(publicacionesFilePath);
-
-// ***** MIDDLEWARES Y CONFIGURACIÓN DE CORS *****
-
-app.use(cors());
-app.use(bodyParser.json()); // Parsear el cuerpo de las solicitudes como JSON
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // Servir archivos estáticos
-
-// Verificar y crear la carpeta 'uploads' si no existe
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir);
-}
-
-// ***** CONFIGURACIÓN DE MULTER PARA SUBIDA DE IMÁGENES *****
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadsDir); // Carpeta de destino
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname); // Nombre único
+// Crear directorios si no existen
+[DATA_DIR, UPLOADS_DIR].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
   }
 });
-const upload = multer({ storage: storage });
 
-// =========================================
-// ***** SECCIÓN DE INICIO DE SESIÓN *****
-// =========================================
+// Actualizar rutas de archivos JSON
+const usuariosFilePath = path.join(DATA_DIR, 'usuarios.json');
+const publicacionesFilePath = path.join(DATA_DIR, 'publicaciones.json');
+const likesFilePath = path.join(DATA_DIR, 'likes.json');
 
-/**
- * ***** OBTENER TODOS LOS USUARIOS *****
- * GET /api/usuarios
- */
+// ***** FUNCIONES DE MANEJO DE ARCHIVOS JSON *****
+const readJsonFile = (filePath) => {
+  if (!fs.existsSync(filePath)) {
+    writeJsonFile(filePath, []); // Crear archivo con array vacío si no existe
+    return [];
+  }
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch (error) {
+    console.error(`Error leyendo ${filePath}:`, error);
+    return [];
+  }
+};
+
+const writeJsonFile = (filePath, data) => {
+  try {
+    const dirName = path.dirname(filePath);
+    if (!fs.existsSync(dirName)) {
+      fs.mkdirSync(dirName, { recursive: true });
+    }
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  } catch (error) {
+    console.error(`Error escribiendo ${filePath}:`, error);
+  }
+};
+
+// Inicializar datos
+let usuarios = readJsonFile(usuariosFilePath);
+let publicaciones = readJsonFile(publicacionesFilePath);
+let likes = readJsonFile(likesFilePath);
+
+// ***** MIDDLEWARES Y CONFIGURACIÓN DE CORS *****
+app.use(cors());
+app.use(bodyParser.json());
+app.use('/uploads', express.static(UPLOADS_DIR));
+
+// ***** CONFIGURACIÓN DE MULTER *****
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, UPLOADS_DIR);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 } // Límite de 5MB
+});
+
+// ***** RUTAS DE USUARIOS *****
 app.get('/api/usuarios', (req, res) => {
   res.json(usuarios);
 });
 
-/**
- * ***** REGISTRAR NUEVO USUARIO *****
- * POST /api/usuarios
- */
 app.post('/api/usuarios', async (req, res) => {
   const { username, password } = req.body;
 
-  // Verificar si el usuario ya existe
+  if (!username || !password) {
+    return res.status(400).json({ message: 'Username y password son requeridos' });
+  }
+
   const existingUser = usuarios.find(u => u.username === username);
   if (existingUser) {
     return res.status(400).json({ message: 'El usuario ya existe' });
   }
 
-  // Encriptar la contraseña
-  const saltRounds = 10;
   try {
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const hashedPassword = await bcrypt.hash(password, 10);
     usuarios.push({ username, password: hashedPassword });
-    writeJsonFile(usuariosFilePath, usuarios); // Guardar el usuario
-
+    writeJsonFile(usuariosFilePath, usuarios);
     res.status(201).json({ message: 'Usuario creado exitosamente' });
   } catch (error) {
-    res.status(500).json({ message: 'Error al crear el usuario', error });
+    console.error('Error al crear usuario:', error);
+    res.status(500).json({ message: 'Error al crear el usuario' });
   }
 });
 
-/**
- * ***** INICIO DE SESIÓN *****
- * POST /api/login
- */
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
 
-  // Buscar al usuario
   const user = usuarios.find(u => u.username === username);
   if (!user) {
     return res.status(400).json({ message: 'El usuario no existe' });
   }
 
-  // Verificar la contraseña
   try {
     const match = await bcrypt.compare(password, user.password);
     if (match) {
@@ -123,26 +127,16 @@ app.post('/api/login', async (req, res) => {
       return res.status(400).json({ message: 'Contraseña incorrecta' });
     }
   } catch (error) {
-    res.status(500).json({ message: 'Error al verificar la contraseña', error });
+    console.error('Error en login:', error);
+    res.status(500).json({ message: 'Error al verificar la contraseña' });
   }
 });
 
-// =========================================
-// ***** SECCIÓN DE PUBLICACIONES *****
-// =========================================
-
-/**
- * ***** OBTENER TODAS LAS PUBLICACIONES *****
- * GET /api/publicaciones
- */
+// ***** RUTAS DE PUBLICACIONES *****
 app.get('/api/publicaciones', (req, res) => {
   res.json(publicaciones);
 });
 
-/**
- * ***** SUBIR UNA NUEVA PUBLICACIÓN *****
- * POST /api/upload
- */
 app.post('/api/upload', upload.single('image'), (req, res) => {
   const { username, description, imageName } = req.body;
 
@@ -150,13 +144,13 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
     return res.status(400).json({ message: 'Error al subir la imagen' });
   }
 
-  // Usa la URL pública de Render
-  const baseUrl = process.env.BASE_URL || 'https://servidor-c1k2.onrender.com';
+  const baseUrl = 'https://servidor-c1k2.onrender.com';
   const nuevaPublicacion = {
     imagePath: `${baseUrl}/uploads/${req.file.filename}`,
     imageName,
     description,
-    username
+    username,
+    timestamp: Date.now()
   };
 
   publicaciones.push(nuevaPublicacion);
@@ -168,49 +162,50 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
   });
 });
 
-// =========================================
-// ***** OTRAS RUTAS *****
-// =========================================
+app.delete('/api/publicaciones', (req, res) => {
+  const { username, publication } = req.body;
 
-/**
- * ***** OBTENER USUARIOS Y PUBLICACIONES *****
- * GET /api/data
- */
-app.get('/api/data', (req, res) => {
-  res.json({ usuarios, publicaciones });
+  const publicationIndex = publicaciones.findIndex(pub =>
+    pub.imagePath === publication.imagePath && pub.imageName === publication.imageName
+  );
+
+  if (publicationIndex === -1) {
+    return res.status(404).json({ message: 'Publicación no encontrada.' });
+  }
+
+  try {
+    // Obtener el nombre del archivo de la URL
+    const fileName = publication.imagePath.split('/').pop();
+    const filePath = path.join(UPLOADS_DIR, fileName);
+    
+    // Eliminar el archivo si existe
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    // Eliminar la publicación del array
+    publicaciones.splice(publicationIndex, 1);
+
+    // Eliminar la publicación de los likes
+    likes.forEach(like => {
+      like.likedPublications = like.likedPublications.filter(likePublication =>
+        likePublication.imagePath !== publication.imagePath || likePublication.imageName !== publication.imageName
+      );
+    });
+
+    writeJsonFile(publicacionesFilePath, publicaciones);
+    writeJsonFile(likesFilePath, likes);
+
+    res.status(200).json({ message: 'Publicación eliminada exitosamente.' });
+  } catch (error) {
+    console.error('Error al eliminar publicación:', error);
+    res.status(500).json({ message: 'Error al eliminar la publicación' });
+  }
 });
 
-/**
- * ***** RUTA RAÍZ *****
- * GET /
- */
-app.get('/', (req, res) => {
-  res.json({ usuarios, publicaciones, likes }); // Asegúrate de que 'likes' esté definido
-});
-
-/**
- * ***** SERVIR PERFIL *****
- * GET /perfil
- */
-app.get('/perfil', (req, res) => {
-  res.sendFile(path.join(__dirname, '../src/components/perfil.astro'));
-});
-
-// =========================================
-// *****  SECCION DE LIKES *****
-// =========================================
-// Archivos JSON
-const likesFilePath = path.join(__dirname, '../data/likes.json');
-let likes = readJsonFile(likesFilePath);
-
-/**
- * ***** OBTENER PUBLICACIONES CON LIKE DE UN USUARIO *****
- * GET /api/likes/:username
- */
+// ***** RUTAS DE LIKES *****
 app.get('/api/likes/:username', (req, res) => {
   const { username } = req.params;
-
-  // Buscar las publicaciones que le gustan al usuario
   const userLikes = likes.find(like => like.username === username);
 
   if (!userLikes) {
@@ -220,7 +215,6 @@ app.get('/api/likes/:username', (req, res) => {
   res.status(200).json(userLikes.likedPublications);
 });
 
-/// Ruta para guardar una publicación en el JSON
 app.post('/api/likes', (req, res) => {
   const { username, publication } = req.body;
 
@@ -231,7 +225,6 @@ app.post('/api/likes', (req, res) => {
     likes.push(userLikes);
   }
 
-  // Verifica si la publicación ya está guardada
   const alreadyLiked = userLikes.likedPublications.some(
     (likedPub) =>
       likedPub.imagePath === publication.imagePath &&
@@ -242,26 +235,21 @@ app.post('/api/likes', (req, res) => {
     return res.status(400).json({ message: 'La publicación ya está guardada.' });
   }
 
-  // Agrega la publicación a la lista de publicaciones que le gustan
   userLikes.likedPublications.push(publication);
-
-  fs.writeFileSync(likesFilePath, JSON.stringify(likes, null, 2));
+  writeJsonFile(likesFilePath, likes);
 
   res.status(201).json({ message: 'Publicación guardada exitosamente.' });
 });
 
-/// Ruta para eliminar un like de un usuario
 app.delete('/api/likes', (req, res) => {
   const { username, publication } = req.body;
 
-  // Encuentra al usuario en el arreglo de likes
   const userLikes = likes.find(like => like.username === username);
 
   if (!userLikes) {
     return res.status(404).json({ message: 'No se encontró el usuario.' });
   }
 
-  // Busca la publicación en los likes del usuario
   const publicationIndex = userLikes.likedPublications.findIndex(
     (pub) => pub.imagePath === publication.imagePath && pub.imageName === publication.imageName
   );
@@ -270,50 +258,24 @@ app.delete('/api/likes', (req, res) => {
     return res.status(404).json({ message: 'No se encontró la publicación en los likes del usuario.' });
   }
 
-  // Elimina la publicación
   userLikes.likedPublications.splice(publicationIndex, 1);
-
-  // Escribe el nuevo estado de likes en el archivo JSON
-  fs.writeFileSync(likesFilePath, JSON.stringify(likes, null, 2));
+  writeJsonFile(likesFilePath, likes);
 
   res.status(200).json({ message: 'Like eliminado exitosamente.' });
 });
 
-
-
-app.delete('/api/publicaciones', (req, res) => {
-  const { username, publication } = req.body;
-
-  // Busca el índice de la publicación que se desea eliminar
-  const publicationIndex = publicaciones.findIndex(pub =>
-    pub.imagePath === publication.imagePath && pub.imageName === publication.imageName
-  );
-
-  if (publicationIndex === -1) {
-    return res.status(404).json({ message: 'Publicación no encontrada.' });
-  }
-
-  // Elimina la publicación
-  publicaciones.splice(publicationIndex, 1);
-
-  // Elimina la publicación de los likes de todos los usuarios
-  likes.forEach(like => {
-    like.likedPublications = like.likedPublications.filter(likePublication =>
-      likePublication.imagePath !== publication.imagePath || likePublication.imageName !== publication.imageName
-    );
-  });
-
-  // Escribe el nuevo estado en el archivo JSON
-  writeJsonFile(publicacionesFilePath, publicaciones);
-  writeJsonFile(likesFilePath, likes);
-
-  res.status(200).json({ message: 'Publicación eliminada exitosamente.' });
+// ***** OTRAS RUTAS *****
+app.get('/api/data', (req, res) => {
+  res.json({ usuarios, publicaciones, likes });
 });
 
-// =========================================
-// ***** INICIAR EL SERVIDOR *****
-// =========================================
+app.get('/', (req, res) => {
+  res.json({ status: 'Servidor funcionando', usuarios, publicaciones, likes });
+});
 
+// ***** INICIAR SERVIDOR *****
 app.listen(port, () => {
-  console.log(`Servidor escuchando en http://localhost:${port}`); // Corregido para usar comillas invertidas
+  console.log(`Servidor iniciado en puerto ${port}`);
+  console.log(`Directorio de datos: ${DATA_DIR}`);
+  console.log(`Directorio de uploads: ${UPLOADS_DIR}`);
 });
