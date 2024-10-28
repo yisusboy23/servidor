@@ -15,14 +15,22 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Definir directorios persistentes en Render
-const PERSISTENT_DIR = '/opt/render/project/src';
+const PERSISTENT_DIR = process.env.RENDER_ENV 
+  ? '/var/data'  // Directorio persistente en Render
+  : path.join(__dirname, 'data'); // Directorio local para desarrollo
+
 const DATA_DIR = path.join(PERSISTENT_DIR, 'data');
 const UPLOADS_DIR = path.join(PERSISTENT_DIR, 'uploads');
 
 // Crear directorios si no existen
 [DATA_DIR, UPLOADS_DIR].forEach(dir => {
   if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      console.log(`Directorio creado: ${dir}`);
+    } catch (error) {
+      console.error(`Error al crear directorio ${dir}:`, error);
+    }
   }
 });
 
@@ -35,10 +43,13 @@ const likesFilePath = path.join(DATA_DIR, 'likes.json');
 const readJsonFile = (filePath) => {
   if (!fs.existsSync(filePath)) {
     writeJsonFile(filePath, []); // Crear archivo con array vacío si no existe
+    console.log(`Archivo creado: ${filePath}`);
     return [];
   }
   try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    console.log(`Datos cargados exitosamente de: ${filePath}`);
+    return data;
   } catch (error) {
     console.error(`Error leyendo ${filePath}:`, error);
     return [];
@@ -52,6 +63,7 @@ const writeJsonFile = (filePath, data) => {
       fs.mkdirSync(dirName, { recursive: true });
     }
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+    console.log(`Datos guardados exitosamente en: ${filePath}`);
   } catch (error) {
     console.error(`Error escribiendo ${filePath}:`, error);
   }
@@ -70,6 +82,10 @@ app.use('/uploads', express.static(UPLOADS_DIR));
 // ***** CONFIGURACIÓN DE MULTER *****
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
+    // Asegurarse de que el directorio existe antes de guardar
+    if (!fs.existsSync(UPLOADS_DIR)) {
+      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    }
     cb(null, UPLOADS_DIR);
   },
   filename: function (req, file, cb) {
@@ -276,6 +292,8 @@ app.get('/', (req, res) => {
 // ***** INICIAR SERVIDOR *****
 app.listen(port, () => {
   console.log(`Servidor iniciado en puerto ${port}`);
+  console.log(`Modo: ${process.env.RENDER_ENV ? 'Producción (Render)' : 'Desarrollo local'}`);
+  console.log(`Directorio persistente: ${PERSISTENT_DIR}`);
   console.log(`Directorio de datos: ${DATA_DIR}`);
   console.log(`Directorio de uploads: ${UPLOADS_DIR}`);
 });
