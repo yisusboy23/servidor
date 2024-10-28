@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
 
 const app = express();
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || 10000;
 
 // ***** CONFIGURACIÓN DE DIRECTORIOS *****
 const __filename = fileURLToPath(import.meta.url);
